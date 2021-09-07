@@ -5,4 +5,4 @@ from .models import GeneralUser
 # Register your models here.
 
 admin.site.register(GeneralUser, UserAdmin)
-UserAdmin.fieldsets += ('Custom fields set', {'fields': ('is_rider', 'is_driver', 'is_activated')}),
+UserAdmin.fieldsets += ('Custom fields set', {'fields': ('user_type', 'is_activated', ),}),

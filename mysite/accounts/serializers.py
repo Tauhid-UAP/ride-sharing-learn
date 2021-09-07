@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import GeneralUser, Driver
+from .models import GeneralUser
 
 class GeneralUserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(style={'input_type': 'password'}, write_only=True)
@@ -10,7 +10,8 @@ class GeneralUserSerializer(serializers.ModelSerializer):
             'last_name',
             'email',
             'username',
-            'password'
+            'password',
+            'user_type'
         ]
         extra_kwargs = {
             'password': {'write_only': True}
@@ -22,6 +23,7 @@ class GeneralUserSerializer(serializers.ModelSerializer):
             last_name=self.validated_data['last_name'],
             email=self.validated_data['email'],
             username=self.validated_data['username'],
+            user_type=self.validated_data['user_type']
         )
         
         password = self.validated_data['password']
@@ -29,8 +31,3 @@ class GeneralUserSerializer(serializers.ModelSerializer):
         generaluser.set_password(password)
         generaluser.save()
         return generaluser
-
-class DriverSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Driver
-        fields = ['generaluser', 'license_credentials']

@@ -2,11 +2,13 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 
-from .models import GeneralUser, Driver
-from .serializers import GeneralUserSerializer, DriverSerializer
+from .models import GeneralUser
+from .serializers import GeneralUserSerializer
 from .utils import get_tokens_for_user
 
 from django.contrib.auth.hashers import check_password
+
+from .permissions import IsRider, IsDriver
 
 # Create your views here.
 
@@ -21,6 +23,7 @@ class UserCreateView(APIView):
         serializer_data['username'] = request.data['username']
         serializer_data['email'] = request.data['email']
         serializer_data['password'] = request.data['password']
+        serializer_data['user_type'] = request.data['userType']
         print('serializer_data: ', serializer_data)
         serializer = GeneralUserSerializer(data=serializer_data)
         print('serializer: ', serializer)
@@ -30,10 +33,8 @@ class UserCreateView(APIView):
             print('Valid!')
             generaluser = serializer.save()
             data['response'] = 'User created successfully.'
-            data['first_name'] = generaluser.first_name
-            data['last_name'] = generaluser.last_name
-            data['email'] = generaluser.email
-            data['username'] = generaluser.username
+            data['id'] = generaluser.id
+            data['user_type'] = generaluser.user_type
 
             return Response(data)
             
@@ -62,54 +63,52 @@ class UserTokensView(APIView):
         
         return Response({'message:' : 'Invalid password or account not active!'})
 
-class BecomeRider(APIView):
-    permission_classes = [IsAuthenticated,]
+# class BecomeRider(APIView):
+#     permission_classes = [IsAuthenticated,]
 
-    def post(self, request):
-        generaluser = request.user
-        if not generaluser.is_rider:
-            generaluser.is_rider = True
-            generaluser.save()
-            return Response({'message': 'You are now a rider.'})
+#     def post(self, request):
+#         generaluser = request.user
+#         if not generaluser.is_rider:
+#             generaluser.is_rider = True
+#             generaluser.save()
+#             return Response({'message': 'You are now a rider.'})
         
-        return Response({'message': 'You are already a rider.'})
+#         return Response({'message': 'You are already a rider.'})
 
-class BecomeDriver(APIView):
-    permission_classes = [IsAuthenticated,]
+# class BecomeDriver(APIView):
+#     permission_classes = [IsAuthenticated,]
 
-    def post(self, request):
-        generaluser = request.user
-        if not generaluser.is_driver:
-            driver = Driver(generaluser=generaluser, license_credentials=request.data['licenseCredentials'])
-            driver.save()
-            generaluser.is_driver = True
-            generaluser.save()
-            return Response({'message': 'You are now a driver.'})
+#     def post(self, request):
+#         generaluser = request.user
+#         if not generaluser.is_driver:
+#             driver = Driver(generaluser=generaluser, license_credentials=request.data['licenseCredentials'])
+#             driver.save()
+#             generaluser.is_driver = True
+#             generaluser.save()
+#             return Response({'message': 'You are now a driver.'})
         
-        return Response({'message': 'You are already a driver.'})
+#         return Response({'message': 'You are already a driver.'})
 
-class OnlyRider(APIView):
-    permission_classes = [IsAuthenticated,]
-
+class OnlySpecificType(APIView):
     def get(self, request):
-        if request.user.is_rider:
-            return Response({'message': 'Looks like you are a rider!'})
+        token = request.META.get('HTTP_AUTHORIZATION')[7:]
+        data = {
+            'id': request.user.id,
+            'user_type': request.user.user_type,
+            'access_token': token
+        }
+        return Response(data)
 
-        return Response({'message': 'Oops! You\'re not a rider.'})
+class OnlyRider(OnlySpecificType):
+    permission_classes = [IsAuthenticated, IsRider]
 
-class OnlyDriver(APIView):
-    permission_classes = [IsAuthenticated,]
-
-    def get(self, request):
-        if request.user.is_driver:
-            return Response({'message': 'Looks like you are a driver!'})
-
-        return Response({'message': 'Oops! You\'re not a driver.'})
+class OnlyDriver(OnlySpecificType):
+    permission_classes = [IsAuthenticated, IsDriver]
 
 # cURL commands for testing
 
 # POST create user by providing the necessary fields
-# curl -X POST -H "Content-Type: application/json" -d "{\"firstName\": \"Kamruzzaman\", \"lastName\": \"Tauhid\", \"username\": \"tauhid\", \"email\": \"17201114@uap-bd.edu\", \"password\": \"eastwestnets\"}" http://127.0.0.1:8000/user_create_view/
+# curl -X POST -H "Content-Type: application/json" -d "{\"firstName\": \"Kamruzzaman\", \"lastName\": \"Tauhid\", \"username\": \"tauhid\", \"email\": \"17201114@uap-bd.edu\", \"password\": \"eastwestnets\", \"userType\": 1}" http://127.0.0.1:8000/accounts/user_create_view/
 
 # POST obtain jwt token pair using username and password
 # curl -X POST -H "Content-Type: application/json" -d "{\"username\": \"tauhid\", \"password\": \"eastwestnets\"}" "http://localhost:8000/accounts/user_tokens_view/"
